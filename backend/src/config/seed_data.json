@@ -1,0 +1,103 @@
+[
+    {
+      "name": "John",
+      "surname": "Doe",
+      "email": "john.doe@example.com",
+      "gender": "Male",
+      "addresses": [
+        {
+          "type": "Residential",
+          "street": "123 Main St",
+          "city": "Johannesburg",
+          "province": "GP",
+          "postal_code": "2000"
+        }
+      ],
+      "contacts": [
+        {
+          "type": "Work",
+          "number": "+27 11 555 1234"
+        },
+        {
+          "type": "Cell",
+          "number": "+27 71 555 9876"
+        }
+      ]
+    },
+    {
+      "name": "Jane",
+      "surname": "Smith",
+      "email": "jane.smith@example.com",
+      "gender": "Female",
+      "addresses": [
+        {
+          "type": "Work",
+          "street": "456 Elm St",
+          "city": "Cape Town",
+          "province": "WC",
+          "postal_code": "8000"
+        }
+      ],
+      "contacts": [
+        {
+          "type": "Work",
+          "number": "+27 21 555 2345"
+        },
+        {
+          "type": "Cell",
+          "number": "+27 81 555 3456"
+        }
+      ]
+    },
+    {
+      "name": "David",
+      "surname": "Johnson",
+      "email": "david.johnson@example.com",
+      "gender": "Male",
+      "addresses": [
+        {
+          "type": "Postal",
+          "street": "789 Oak St",
+          "city": "Durban",
+          "province": "KZN",
+          "postal_code": "4000"
+        }
+      ],
+      "contacts": []
+    },
+    {
+      "name": "Sarah",
+      "surname": "Brown",
+      "email": "sarah.brown@example.com",
+      "gender": "Female",
+      "addresses": [],
+      "contacts": [
+        {
+          "type": "Work",
+          "number": "+27 12 555 7890"
+        }
+      ]
+    },
+    {
+      "name": "Michael",
+      "surname": "Williams",
+      "email": "michael.williams@example.com",
+      "gender": "Male",
+      "addresses": [
+        {
+          "type": "Work",
+          "street": "222 Cedar St",
+          "city": "Bloemfontein",
+          "province": "FS",
+          "postal_code": "9301"
+        }
+      ],
+      "contacts": [
+        {
+          "type": "Work",
+          "number": "+27 51 555 8901"
+        }
+      ]
+    }
+  ]
+  

@@ -1,0 +1,228 @@
+-- ======== 1 Database ================================
+CREATE DATABASE IF NOT EXISTS `client_info`;
+
+-- Switch to the 'client-info' database
+USE `client_info`;
+
+-- Table for storing client information
+CREATE TABLE IF NOT EXISTS clients (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  surname VARCHAR(255) NOT NULL,  
+  email VARCHAR(255) NOT NULL UNIQUE,  
+  gender ENUM('Male', 'Female') NOT NULL
+);
+
+-- Table for storing client addresses
+CREATE TABLE IF NOT EXISTS addresses (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  client_id INT NOT NULL,
+  type ENUM('Residential', 'Work', 'Postal') NOT NULL,
+  street VARCHAR(255) NOT NULL,
+  city VARCHAR(255) NOT NULL,
+  province VARCHAR(255) NOT NULL,
+  postal_code VARCHAR(10) NOT NULL,
+  FOREIGN KEY (client_id) REFERENCES clients(id)
+);
+
+-- Table for storing client contact information
+CREATE TABLE IF NOT EXISTS contact_info (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  client_id INT NOT NULL,
+  type ENUM('Cell', 'Work') NOT NULL,
+  number VARCHAR(20) NOT NULL,
+  FOREIGN KEY (client_id) REFERENCES clients(id)
+);
+
+
+-- ======== 2 sp_CreateClient ================================
+USE client_info;
+DELIMITER //
+
+CREATE PROCEDURE sp_CreateClient(
+    IN p_name VARCHAR(255),
+    IN p_surname VARCHAR(255),
+    IN p_email VARCHAR(255),
+    IN p_gender ENUM('Male', 'Female'),
+    IN p_addresses JSON,
+    IN p_contacts JSON,
+    OUT p_client_id INT
+)
+BEGIN
+    DECLARE lastInsertId INT;
+    DECLARE addressIndex INT;
+    DECLARE contactIndex INT;
+    DECLARE numAddresses INT;
+    DECLARE numContacts INT;
+
+	DECLARE EXIT HANDLER FOR SQLEXCEPTION
+	BEGIN
+	  ROLLBACK;
+	  RESIGNAL;
+	END;
+  
+    START TRANSACTION;
+
+    -- Insert client data and capture the lastInsertId
+    INSERT INTO clients (name, surname, email, gender)
+    VALUES (p_name, p_surname, p_email, p_gender);
+
+    SET lastInsertId = LAST_INSERT_ID();
+
+    -- Process addresses array
+    SET numAddresses = JSON_LENGTH(p_addresses);
+    SET addressIndex = 0;
+
+    WHILE addressIndex < numAddresses DO
+        INSERT INTO addresses (client_id, type, street, city, province, postal_code)
+        VALUES (
+            lastInsertId,
+            JSON_UNQUOTE(JSON_EXTRACT(p_addresses, CONCAT('$[', addressIndex, '].type'))),
+            JSON_UNQUOTE(JSON_EXTRACT(p_addresses, CONCAT('$[', addressIndex, '].street'))),
+            JSON_UNQUOTE(JSON_EXTRACT(p_addresses, CONCAT('$[', addressIndex, '].city'))),
+            JSON_UNQUOTE(JSON_EXTRACT(p_addresses, CONCAT('$[', addressIndex, '].province'))),
+            JSON_UNQUOTE(JSON_EXTRACT(p_addresses, CONCAT('$[', addressIndex, '].postal_code')))
+        );
+
+        SET addressIndex = addressIndex + 1;
+    END WHILE;
+
+    -- Process contacts array
+    SET numContacts = JSON_LENGTH(p_contacts);
+    SET contactIndex = 0;
+
+    WHILE contactIndex < numContacts DO
+        INSERT INTO contact_info (client_id, type, number)
+        VALUES (
+            lastInsertId,
+            JSON_UNQUOTE(JSON_EXTRACT(p_contacts, CONCAT('$[', contactIndex, '].type'))),
+            JSON_UNQUOTE(JSON_EXTRACT(p_contacts, CONCAT('$[', contactIndex, '].number')))
+        );
+
+        SET contactIndex = contactIndex + 1;
+    END WHILE;
+
+    -- Return the ID of the inserted client
+    SET p_client_id = lastInsertId;
+
+    COMMIT;
+END //
+DELIMITER ;
+
+
+-- ======== 3 sp_DeleteClient ================================
+use client_info;
+DELIMITER //
+
+CREATE PROCEDURE sp_DeleteClient(IN clientId INT)
+BEGIN
+  DECLARE EXIT HANDLER FOR SQLEXCEPTION
+  BEGIN
+    ROLLBACK;
+    RESIGNAL;
+  END;
+
+  START TRANSACTION;
+
+  -- Delete related records from contact_info
+  DELETE FROM contact_info WHERE client_id = clientId;
+
+  -- Delete related records from addresses
+  DELETE FROM addresses WHERE client_id = clientId;
+
+  -- Delete the client
+  DELETE FROM clients WHERE id = clientId;
+
+  COMMIT;
+END //
+
+DELIMITER ;
+
+
+-- ======== 4 sp_UpdateClient ================================
+DELIMITER //
+
+CREATE PROCEDURE sp_UpdateClient(
+  IN clientId INT,
+  IN clientName VARCHAR(255),
+  IN clientSurname VARCHAR(255),
+  IN clientEmail VARCHAR(255),
+  IN clientGender ENUM('Male', 'Female'),
+  IN clientAddresses JSON,
+  IN clientContacts JSON
+)
+BEGIN
+  DECLARE EXIT HANDLER FOR SQLEXCEPTION
+  BEGIN
+    ROLLBACK;
+    RESIGNAL;
+  END;
+
+  START TRANSACTION;
+  
+  DROP TEMPORARY TABLE IF EXISTS temp_addresses;
+  DROP TEMPORARY TABLE IF EXISTS temp_contacts;
+  
+  -- Update client details
+  UPDATE clients
+  SET
+    name = clientName,
+    surname = clientSurname,
+    email = clientEmail,
+    gender = clientGender
+  WHERE id = clientId;
+
+  -- Delete existing addresses and contact info for the client
+  DELETE FROM addresses WHERE client_id = clientId;
+  DELETE FROM contact_info WHERE client_id = clientId;
+
+  -- Create temporary tables to hold JSON data
+  CREATE TEMPORARY TABLE temp_addresses (
+    type ENUM('Residential', 'Work', 'Postal'),
+    street VARCHAR(255),
+    city VARCHAR(255),
+    province VARCHAR(255),
+    postal_code VARCHAR(10)
+  );
+
+  CREATE TEMPORARY TABLE temp_contacts (
+    type ENUM('Cell', 'Work'),
+    number VARCHAR(20)
+  );
+
+  -- Insert JSON data into temporary tables
+  INSERT INTO temp_addresses
+  SELECT
+    JSON_UNQUOTE(JSON_EXTRACT(address, '$.type')),
+    JSON_UNQUOTE(JSON_EXTRACT(address, '$.street')),
+    JSON_UNQUOTE(JSON_EXTRACT(address, '$.city')),
+    JSON_UNQUOTE(JSON_EXTRACT(address, '$.province')),
+    JSON_UNQUOTE(JSON_EXTRACT(address, '$.postal_code'))
+  FROM JSON_TABLE(clientAddresses, '$[*]' COLUMNS (
+    address JSON PATH '$'
+  )) AS addresses;
+
+  INSERT INTO temp_contacts
+  SELECT
+    JSON_UNQUOTE(JSON_EXTRACT(contact, '$.type')),
+    JSON_UNQUOTE(JSON_EXTRACT(contact, '$.number'))
+  FROM JSON_TABLE(clientContacts, '$[*]' COLUMNS (
+    contact JSON PATH '$'
+  )) AS contacts;
+
+  -- Insert updated addresses
+  INSERT INTO addresses (client_id, type, street, city, province, postal_code)
+  SELECT clientId, type, street, city, province, postal_code FROM temp_addresses;
+
+  -- Insert updated contact info
+  INSERT INTO contact_info (client_id, type, number)
+  SELECT clientId, type, number FROM temp_contacts;
+
+  -- Drop temporary tables
+  DROP TEMPORARY TABLE temp_addresses;
+  DROP TEMPORARY TABLE temp_contacts;
+
+  COMMIT;
+END //
+
+DELIMITER ;
