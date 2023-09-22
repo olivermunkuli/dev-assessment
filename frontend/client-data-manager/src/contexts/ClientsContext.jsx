@@ -36,6 +36,7 @@ import {
           currentClient: action.payload,
         };
       case 'clients/loaded':
+        console.log("action.payload\n", action.payload);
         return {
           ...state,
           isLoading: false,

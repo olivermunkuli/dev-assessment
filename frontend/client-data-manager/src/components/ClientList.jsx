@@ -1,16 +1,22 @@
-import React, { useState } from 'react';
+import  { useState } from 'react';
 import { Table, Button } from 'react-bootstrap';
 import { useClients } from '../contexts/ClientsContext';
 import Spinner from '../components/Spinner';
 import NewClientForm from '../components/NewClientForm'; 
 import EditClientForm from '../components/EditClientForm'; 
+import { convertToCSV, downloadCSV,} from "./utils";
 
 const ClientList = () => {
-  const { isLoading, clients, setCurrentClient, currentClient, deleteClient } = useClients();
+  const { isLoading, clients, currentClient, deleteClient } = useClients();
   const [showAddClientForm, setShowAddClientForm] = useState(false);
 
   const toggleAddClientForm = (flag) => {
     setShowAddClientForm(flag);
+  };
+
+  const handleDownloadCSV = () => {
+    const csvData = convertToCSV(clients);
+    downloadCSV(csvData, 'client_list.csv');
   };
 
 
@@ -75,9 +81,14 @@ const ClientList = () => {
             </tbody>
           </Table>
 
-          <Button variant="success" onClick={() => toggleAddClientForm(true)}>
-             Add New Client
-</Button>
+          <div className="d-flex justify-content-between align-items-center">
+             <Button variant="success" onClick={() => toggleAddClientForm(true)}>
+                Add New Client
+             </Button>
+             <Button variant="success" onClick={handleDownloadCSV}>
+                Download CSV
+             </Button>
+          </div>
 
         </div>
       )}
